@@ -1,9 +1,6 @@
 package com.example.cs209project.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.util.Date;
 
 @Entity
@@ -12,6 +9,7 @@ public class Issue {
     @Id
     private Long id;
     private Long repo_id;
+    @Column(length = 500)
     private String title;
     private String state;
     private Date open_date;
