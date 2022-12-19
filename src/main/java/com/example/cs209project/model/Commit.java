@@ -16,8 +16,7 @@ public class Commit {
     private Long committer_id;
     private Date create_date;
 
-    public Commit(Long id, Long repo_id, Long committer_id, Date create_date) {
-        this.id = id;
+    public Commit(Long repo_id, Long committer_id, Date create_date) {
         this.repo_id = repo_id;
         this.committer_id = committer_id;
         this.create_date = create_date;
