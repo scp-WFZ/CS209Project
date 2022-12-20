@@ -9,9 +9,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class DataService {
@@ -20,6 +18,8 @@ public class DataService {
     private final CommitRepository commitRepository;
     private final ReleaseRepository releaseRepository;
     private final IssueRepository issueRepository;
+
+    private final Map<String, Integer> Developermap = new HashMap<>();
 
     @Autowired
     public DataService(RepoRepository repoRepository, DeveloperRepository developerRepository, CommitRepository commitRepository,
@@ -33,8 +33,8 @@ public class DataService {
 
     public void addEntries(){
         addRepositories();
-        addDevelopers();
         addCommits();
+        addDevelopers();
         addReleases();
         addIssues();
     }
@@ -78,6 +78,27 @@ public class DataService {
         repoRepository.saveAll(List.of(gitRepository));
     }
 
+    public void addCommits(){
+        String jsonstring = getJSONString("src/main/resources/raw_data/commits.json");
+
+        JSONArray jsonArray = JSON.parseArray(jsonstring);
+        List<Commit> commits = new ArrayList<>();
+        jsonArray.forEach(e -> {
+            JSONObject jsonObject = JSONObject.parseObject(e.toString());
+            String commit =  jsonObject.getString("commit");
+            String commiter_2 = jsonObject.getString("committer");
+            String committer = JSONObject.parseObject(commit).getString("committer");
+            String datestr = JSONObject.parseObject(committer).getString("date");
+            String name = JSONObject.parseObject(commiter_2).getString("login");
+            Developermap.put(name, Developermap.getOrDefault(name, 0) + 1);
+            Date date = string2Date(datestr);
+            committer = jsonObject.getString("committer");
+            Long committer_id =  JSONObject.parseObject(committer).getLong("id");
+            commits.add(new Commit(1L, committer_id, date));
+        });
+        commitRepository.saveAll(commits);
+    }
+
     public void addDevelopers(){
         String jsonstring = getJSONString("src/main/resources/raw_data/developers.json");
 
@@ -88,28 +109,10 @@ public class DataService {
             Long id = jsonObject.getLong("id");
             String name =  jsonObject.getString("login");
             if(null != id && null != name) {
-                developers.add(new Developer(id, 1L, name));
+                developers.add(new Developer(id, 1L, name, Developermap.getOrDefault(name, 0)));
             }
         });
         developerRepository.saveAll(developers);
-    }
-
-    public void addCommits(){
-        String jsonstring = getJSONString("src/main/resources/raw_data/commits.json");
-
-        JSONArray jsonArray = JSON.parseArray(jsonstring);
-        List<Commit> commits = new ArrayList<>();
-        jsonArray.forEach(e -> {
-            JSONObject jsonObject = JSONObject.parseObject(e.toString());
-            String commit =  jsonObject.getString("commit");
-            String committer = JSONObject.parseObject(commit).getString("committer");
-            String datestr = JSONObject.parseObject(committer).getString("date");
-            Date date = string2Date(datestr);
-            committer = jsonObject.getString("committer");
-            Long committer_id =  JSONObject.parseObject(committer).getLong("id");
-            commits.add(new Commit(1L, committer_id, date));
-        });
-        commitRepository.saveAll(commits);
     }
 
     public void addReleases(){

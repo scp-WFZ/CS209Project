@@ -2,15 +2,19 @@ package com.example.cs209project.controller;
 
 import com.example.cs209project.model.*;
 import com.example.cs209project.repository.*;
+import com.sun.istack.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.*;
 
 @RestController
-@RequestMapping("/git-repository")
 public class RepoController {
     @Autowired
     private RepoRepository repoRepository;
@@ -35,7 +39,7 @@ public class RepoController {
         return repoRepository.getById(Long.valueOf(repos_id));
     }
 
-    @GetMapping("/filterRepos")
+    @GetMapping("/gitRepo")
     @CrossOrigin
     public List<GitRepository> getGithubRepos(
             @RequestParam(value="name", required = false)@Nullable String name){
@@ -46,20 +50,39 @@ public class RepoController {
     @GetMapping("/IssueRepo")
     @CrossOrigin
     public Map<String, List<Object>> getIssueReposiroty(
-            @RequestParam(value="repos_name") String repos_name,
-            @RequestParam(value="begin",required = false)@Nullable String begin,
-            @RequestParam(value="end", required = false)@Nullable String end,
-            @RequestParam(value="state", required = false)@Nullable String state,
-            @RequestParam(value="title", required = false)@Nullable String title,
-            @RequestParam(value="limit", required = false)@Nullable Integer limit){
+            @RequestParam(value="repos_name") String repos_name){
         List<Issue> lie = issueRepository.getIssueEvents(
-                repos_name,
-                begin!=null?begin:"",
-                end!=null?end:"",
-                state!=null?state:"",
-                title!=null?title:"",
-                limit!=null?limit:20);
+                repos_name);
         return null;
+    }
+
+    public static Map<String, Object> analyseIssues(@NotNull String repos_name){
+        Map<String, Object> msi = new HashMap<>();
+        String query = String.format("select i.state,count(i.state) from issue i left join github_repos_info gri on gri.id = i.repos_id" +
+                " where gri.full_name = '%s'" +
+                " group by i.state;",repos_name);
+        try{
+            Connection conn = null;
+            Statement stmt = null;
+            conn = DriverManager.getConnection(url,user,password);
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while(rs.next()){
+                msi.put(rs.getString(1),rs.getInt(2));
+            }
+            rs = stmt.executeQuery(String.format("select i.labeled, count(i.*) from issue i left join github_repos_info gri on gri.id = i.repos_id where gri.full_name = '%s' group by i.labeled;",repos_name));
+            while(rs.next()){
+                msi.put(rs.getString(1),rs.getInt(2));
+            }
+            rs = stmt.executeQuery(String.format("select avg(date_part('day',cast(to_date(substr(i.closed_at,1,10), 'YYYY-MM-DD') as TIMESTAMP) - cast(to_date(substr(i.created_at,1,10), 'YYYY-MM-DD') as TIMESTAMP))) from issue i left join github_repos_info gri on gri.id = i.repos_id where state = 'closedI' and gri.full_name = '%s';",repos_name));
+            rs.next();
+            msi.put("avg_closed_time",rs.getDouble(1));
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return msi;
     }
 
     @GetMapping("/CommitRepo")
@@ -98,14 +121,11 @@ public class RepoController {
 
     @GetMapping("/DeveloperRepo")
     @CrossOrigin
-    public Map<String, List<Object>> getReleaseReposiroty(
-            @RequestParam(value="repos_name") String repos_name,
-            @RequestParam(value="author_id",required = false)@Nullable String name){
-        List<Developer> ldp = developerRepository.getDeveloperRepository(
-                repos_name,
-                name!=null?name:"");
-        return null;
+    public List<Developer> getDeveloperReposiroty(
+            @RequestParam(value="repos_name") String repos_name){
+        return developerRepository.getDeveloperRepository(repos_name);
     }
+
 
 
 
