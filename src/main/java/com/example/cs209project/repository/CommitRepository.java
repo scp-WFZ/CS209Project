@@ -15,8 +15,9 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
                     " on gri.id = coi.repo_id" +
                     " where gri.name = ?1" +
                     " and case when (?2<>-1) then coi.committer_id =?2 else 1=1 end" +
-                    " and case when (?3<>'') then substr(coi.create_date,1,10)>=?3 else 1=1 end" +
-                    " limit ?4", nativeQuery = true)
+                    " and case when (?3<>'') then coi.create_date >= cast(?3 as TIMESTAMP) else 1=1 end" +
+                    " and case when (?4<>'') then coi.create_date <= cast(?4 as TIMESTAMP) else 1=1 end" +
+                    " limit ?5", nativeQuery = true)
     List<Commit> getCommitRepository(
-            String repos_name, Integer committer_id, String create_date, Integer limit);
+            String repos_name, Integer committer_id, String since, String end, Integer limit);
 }
