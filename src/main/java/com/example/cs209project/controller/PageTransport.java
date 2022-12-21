@@ -5,21 +5,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class PageTransport {
-    @Deprecated
-    @GetMapping("/repository")
-    public String repository(){
-        return "Repository";
-    }
-    @Deprecated
-    @GetMapping("/Issue")
-    public String issue(){
-        return "Issue";
-    }
-    @Deprecated
-    @GetMapping("/event")
-    public String event(){
-        return "Event";
-    }
     @GetMapping("/index")
     public String index(){
         return "Main";

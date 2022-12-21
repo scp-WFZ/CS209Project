@@ -10,13 +10,10 @@ public class Developer {
     private Long repo_id;
     private String name;
 
-    private Integer commit_times;
-
-    public Developer(Long id, Long repo_id, String name, Integer commit_times) {
+    public Developer(Long id, Long repo_id, String name) {
         this.id = id;
         this.repo_id = repo_id;
         this.name = name;
-        this.commit_times = commit_times;
     }
 
     public Developer() {
@@ -44,13 +41,5 @@ public class Developer {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public Integer getCommit_times() {
-        return commit_times;
-    }
-
-    public void setCommit_times(Integer commit_times) {
-        this.commit_times = commit_times;
     }
 }

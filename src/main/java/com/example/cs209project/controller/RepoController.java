@@ -1,18 +1,23 @@
 package com.example.cs209project.controller;
 
-import com.example.cs209project.model.*;
+import com.example.cs209project.model.Commit;
+import com.example.cs209project.model.Developer;
+import com.example.cs209project.model.GitRepository;
+import com.example.cs209project.model.Release;
 import com.example.cs209project.repository.*;
-import com.sun.istack.NotNull;
+import com.example.cs209project.service.DataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.time.LocalDate;
-import java.util.*;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 public class RepoController {
@@ -33,12 +38,6 @@ public class RepoController {
         return repoRepository.findAll();
     }
 
-    @GetMapping("/repos/{repos_id}")
-    @CrossOrigin
-    public GitRepository getReposById(@PathVariable(value = "repos_id")Integer repos_id){
-        return repoRepository.getById(Long.valueOf(repos_id));
-    }
-
     @GetMapping("/gitRepo")
     @CrossOrigin
     public List<GitRepository> getGithubRepos(
@@ -49,38 +48,14 @@ public class RepoController {
 
     @GetMapping("/IssueRepo")
     @CrossOrigin
-    public Map<String, List<Object>> getIssueReposiroty(
+    public Map<String, Object> getIssueReposiroty(
             @RequestParam(value="repos_name") String repos_name){
-        List<Issue> lie = issueRepository.getIssueEvents(
-                repos_name);
-        return null;
-    }
-
-    public static Map<String, Object> analyseIssues(@NotNull String repos_name){
-        Map<String, Object> msi = new HashMap<>();
-        String query = String.format("select i.state,count(i.state) from issue i left join github_repos_info gri on gri.id = i.repos_id" +
-                " where gri.full_name = '%s'" +
-                " group by i.state;",repos_name);
-        try{
-            Connection conn = null;
-            Statement stmt = null;
-            conn = DriverManager.getConnection(url,user,password);
-            stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-            while(rs.next()){
-                msi.put(rs.getString(1),rs.getInt(2));
-            }
-            rs = stmt.executeQuery(String.format("select i.labeled, count(i.*) from issue i left join github_repos_info gri on gri.id = i.repos_id where gri.full_name = '%s' group by i.labeled;",repos_name));
-            while(rs.next()){
-                msi.put(rs.getString(1),rs.getInt(2));
-            }
-            rs = stmt.executeQuery(String.format("select avg(date_part('day',cast(to_date(substr(i.closed_at,1,10), 'YYYY-MM-DD') as TIMESTAMP) - cast(to_date(substr(i.created_at,1,10), 'YYYY-MM-DD') as TIMESTAMP))) from issue i left join github_repos_info gri on gri.id = i.repos_id where state = 'closedI' and gri.full_name = '%s';",repos_name));
-            rs.next();
-            msi.put("avg_closed_time",rs.getDouble(1));
-            stmt.close();
-            conn.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        Map<String, Object> msi = DataService.analyseIssues(repos_name);
+        if(!msi.containsKey("open")){
+            msi.put("open",0);
+        }
+        if(!msi.containsKey("closed")){
+            msi.put("closed",0);
         }
         return msi;
     }
@@ -90,14 +65,25 @@ public class RepoController {
     public Map<String, List<Object>> getCommitReposiroty(
             @RequestParam(value="repos_name") String repos_name,
             @RequestParam(value="committer_id",required = false)@Nullable Integer committer_id,
-            @RequestParam(value="create_date", required = false)@Nullable String create_date,
+            @RequestParam(value="since", required = false)@Nullable String since,
+            @RequestParam(value="end", required = false)@Nullable String end,
             @RequestParam(value="limit", required = false)@Nullable Integer limit){
         List<Commit> lcr = commitRepository.getCommitRepository(
                 repos_name,
                 committer_id!=null?committer_id:-1,
-                create_date!=null?create_date:"",
+                since!=null?since:"",
+                end!=null?end:"",
                 limit!=null?limit:20);
-        return null;
+        Map<String, Object> msi = DataService.analyseCommit(repos_name);
+        Map<String, List<Object>> out = new HashMap<>();
+        out.put("info", new LinkedList<>());
+        for(Commit commit : lcr) {
+            out.get("info").add(commit.getCreate_date());
+            out.get("info").add(msi.get(String.valueOf(commit.getId())));
+        }
+        out.put("All_commit_nums", new LinkedList<>());
+        out.get("All_commit_nums").add(0, msi.get("All_commit_nums"));
+        return out;
     }
 
     @GetMapping("/ReleaseRepo")
@@ -106,27 +92,86 @@ public class RepoController {
             @RequestParam(value="repos_name") String repos_name,
             @RequestParam(value="author_id",required = false)@Nullable Long author_id,
             @RequestParam(value="name", required = false)@Nullable String name,
-            @RequestParam(value="create_date", required = false)@Nullable String create_date,
-            @RequestParam(value="publish_date", required = false)@Nullable String publish_date,
+            @RequestParam(value="since", required = false)@Nullable String since,
             @RequestParam(value="limit", required = false)@Nullable Integer limit){
-        List<Release> lre = releaseRepository.getReleaseRepository(
+        List<Release> rel = releaseRepository.getReleaseRepository(
                 repos_name,
                 author_id!=null?author_id:-1,
                 name!=null?name:"",
-                create_date!=null?create_date:"",
-                publish_date!=null?publish_date:"",
+                since!=null?since:"",
                 limit!=null?limit:20);
-        return null;
+        Map<String, Object> msi = DataService.analyseRelease(repos_name);
+        Map<String, List<Object>> out = new HashMap<>();
+        out.put("info", new LinkedList<>());
+        for(Release release : rel) {
+            out.get("info").add(release.getCreate_date());
+            out.get("info").add(msi.get(release.getName()) + " release " + release.getName());
+        }
+        out.put("All_repo_nums", new LinkedList<>());
+        out.get("All_repo_nums").add(0, msi.get("All_repo_nums"));
+        return out;
     }
 
     @GetMapping("/DeveloperRepo")
     @CrossOrigin
-    public List<Developer> getDeveloperReposiroty(
+    public Map<String, List<Object>> getDeveloperReposiroty(
             @RequestParam(value="repos_name") String repos_name){
-        return developerRepository.getDeveloperRepository(repos_name);
+        List<Developer> drl = developerRepository.getDeveloperRepository(repos_name);
+        Map <String, Object> msi = DataService.analyseDeveloper(repos_name);
+        Map<String, List<Object>> out = new HashMap<>();
+        out.put("info", new LinkedList<>());
+        for(Developer developer : drl) {
+            out.get("info").add(developer.getName());
+            out.get("info").add(msi.getOrDefault(developer.getName(), 0));
+        }
+        return out;
     }
 
-
-
-
+    @RequestMapping("/download/{filetype}/{filename}")
+    @CrossOrigin
+    public String downloadFiles(
+            @PathVariable("filetype") String filetype,
+            @PathVariable("filename") String filename,
+            HttpServletResponse response) {
+        String path = "C:\\Users\\amd yes\\Documents\\GitHub\\CS209Project\\src\\main\\resources\\static\\%s\\%s";
+        File file = new File(String.format(path,filetype,filename));
+        if (file.exists()) {
+            response.reset();
+            response.setContentType("application/octet-stream");
+            response.setCharacterEncoding("utf-8");
+            response.setContentLengthLong(file.length());
+            response.setHeader("Content-Disposition","attachment;fileName="+ URLEncoder.encode(file.getName(), StandardCharsets.UTF_8));
+            byte[] buffer = new byte[1024];
+            FileInputStream fis = null;
+            BufferedInputStream bis = null;
+            try {
+                fis = new FileInputStream(file);
+                bis = new BufferedInputStream(fis);
+                OutputStream os = response.getOutputStream();
+                int i;
+                while ((i = bis.read(buffer)) != -1) {
+                    os.write(buffer, 0, i);
+                    os.flush();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                if (bis != null) {
+                    try {
+                        bis.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (fis != null) {
+                    try {
+                        fis.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        return "File";
+    }
 }

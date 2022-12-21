@@ -3,10 +3,15 @@ package com.example.cs209project.service;
 import com.alibaba.fastjson.*;
 import com.example.cs209project.model.*;
 import com.example.cs209project.repository.*;
+import com.sun.istack.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -64,7 +69,7 @@ public class DataService {
         }
         datestr = datestr.replaceAll("Z","").replaceAll("T"," ");
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date date = null;
+        Date date;
         try {
             date = simpleDateFormat.parse(datestr);
         } catch (ParseException ex) {
@@ -86,11 +91,8 @@ public class DataService {
         jsonArray.forEach(e -> {
             JSONObject jsonObject = JSONObject.parseObject(e.toString());
             String commit =  jsonObject.getString("commit");
-            String commiter_2 = jsonObject.getString("committer");
             String committer = JSONObject.parseObject(commit).getString("committer");
             String datestr = JSONObject.parseObject(committer).getString("date");
-            String name = JSONObject.parseObject(commiter_2).getString("login");
-            Developermap.put(name, Developermap.getOrDefault(name, 0) + 1);
             Date date = string2Date(datestr);
             committer = jsonObject.getString("committer");
             Long committer_id =  JSONObject.parseObject(committer).getLong("id");
@@ -109,7 +111,7 @@ public class DataService {
             Long id = jsonObject.getLong("id");
             String name =  jsonObject.getString("login");
             if(null != id && null != name) {
-                developers.add(new Developer(id, 1L, name, Developermap.getOrDefault(name, 0)));
+                developers.add(new Developer(id, 1L, name));
             }
         });
         developerRepository.saveAll(developers);
@@ -150,6 +152,125 @@ public class DataService {
             issues.add(new Issue(id, repo_id, title, state, create_date, closed_date));
         });
         issueRepository.saveAll(issues);
+    }
+
+    public static Map<String, Object> analyseIssues(@NotNull String repos_name){
+        Map<String, Object> msi = new HashMap<>();
+        String query = String.format("select i.state,count(i.state) " +
+                "from issue i left join git_repository gri on gri.id = i.repo_id" +
+                " where gri.name = '%s'" +
+                " group by i.state;",repos_name);
+        try{
+            Connection conn;
+            Statement stmt;
+            conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
+                    "postgres","qscfthm123");
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while(rs.next()){
+                msi.put(rs.getString(1),rs.getInt(2));
+            }
+            rs = stmt.executeQuery(String.format("""
+                    select avg(date_part('day',cast(i.close_date as TIMESTAMP)
+                    - cast(i.open_date as TIMESTAMP)))
+                    from issue i left join git_repository gri on gri.id = i.repo_id where state = 'closed' and gri.name = '%s';""",repos_name));
+            rs.next();
+            msi.put("avg_closed_time",rs.getDouble(1));
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return msi;
+    }
+
+    public static Map<String, Object> analyseRelease(@NotNull String repos_name){
+        Map<String, Object> msi = new HashMap<>();
+        String query = String.format("""
+                select del.name, r.name
+                from developer del join release r on del.id = r.author_id
+                left join git_repository gr on del.repo_id = gr.id
+                where gr.name = '%s'""",repos_name);
+        try{
+            Connection conn;
+            Statement stmt;
+            conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
+                    "postgres","qscfthm123");
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while(rs.next()){
+                msi.put(rs.getString(2),rs.getString(1));
+            }
+            rs = stmt.executeQuery(String.format("""
+                select count(rel.id)
+                from release rel left join git_repository gr on rel.repo_id = gr.id
+                where gr.name = '%s'""",repos_name));
+            rs.next();
+            msi.put("All_repo_nums", rs.getInt(1));
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return msi;
+    }
+
+    public static Map<String, Object> analyseCommit(@NotNull String repos_name){
+        Map<String, Object> msi = new HashMap<>();
+        String query = String.format("""
+                select del.name, c.id
+                from developer del join commit c on del.id = c.committer_id
+                left join git_repository gr on del.repo_id = gr.id
+                where gr.name = '%s'""",repos_name);
+        try{
+            Connection conn;
+            Statement stmt;
+            conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
+                    "postgres","qscfthm123");
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while(rs.next()){
+                msi.put(rs.getString(2),rs.getString(1));
+            }
+            rs = stmt.executeQuery(String.format("""
+                    select count(c.id)
+                    from commit c left join git_repository gr on c.repo_id = gr.id
+                    where gr.name = '%s'""",repos_name));
+            rs.next();
+            msi.put("All_commit_nums", rs.getInt(1));
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return msi;
+    }
+
+    public static Map<String, Object> analyseDeveloper(@NotNull String repos_name){
+        Map<String, Object> msi = new HashMap<>();
+        String query = String.format("""
+                select d.id, d.name, count(*)
+                from developer d
+                join commit c on d.id = c.committer_id
+                left join git_repository gr on d.repo_id = gr.id
+                where gr.name = '%s'
+                group by d.id""", repos_name);
+        try{
+            Connection conn;
+            Statement stmt;
+            conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
+                    "postgres","qscfthm123");
+            stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while(rs.next()){
+                msi.put(rs.getString(2),rs.getInt(3));
+            }
+            stmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return msi;
     }
 
 }
