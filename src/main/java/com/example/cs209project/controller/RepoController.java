@@ -24,8 +24,6 @@ public class RepoController {
     @Autowired
     private RepoRepository repoRepository;
     @Autowired
-    private IssueRepository issueRepository;
-    @Autowired
     private CommitRepository commitRepository;
     @Autowired
     private ReleaseRepository releaseRepository;
@@ -127,6 +125,12 @@ public class RepoController {
         return out;
     }
 
+    @GetMapping("/Error")
+    @CrossOrigin
+    public String index(){
+        return "Error";
+    }
+
     @RequestMapping("/download/{filetype}/{filename}")
     @CrossOrigin
     public String downloadFiles(
@@ -142,8 +146,8 @@ public class RepoController {
             response.setContentLengthLong(file.length());
             response.setHeader("Content-Disposition","attachment;fileName="+ URLEncoder.encode(file.getName(), StandardCharsets.UTF_8));
             byte[] buffer = new byte[1024];
-            FileInputStream fis = null;
-            BufferedInputStream bis = null;
+            FileInputStream fis;
+            BufferedInputStream bis;
             try {
                 fis = new FileInputStream(file);
                 bis = new BufferedInputStream(fis);
@@ -153,23 +157,10 @@ public class RepoController {
                     os.write(buffer, 0, i);
                     os.flush();
                 }
+                bis.close();
+                fis.close();
             } catch (IOException e) {
                 throw new RuntimeException(e);
-            } finally {
-                if (bis != null) {
-                    try {
-                        bis.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-                if (fis != null) {
-                    try {
-                        fis.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
             }
         }
         return "File";
