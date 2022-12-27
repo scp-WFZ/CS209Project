@@ -38,10 +38,13 @@ public class DataService {
 
     public void addEntries(){
         addRepositories();
-        addCommits();
-        addDevelopers();
-        addReleases();
-        addIssues();
+        for (int i = 1; i <= 2; i++){
+            addCommits(i);
+            addDevelopers(i);
+            addReleases(i);
+            addIssues(i);
+        }
+
     }
 
     public String getJSONString(String filePath) {
@@ -79,12 +82,14 @@ public class DataService {
     }
 
     public void addRepositories(){
-        GitRepository gitRepository = new GitRepository(1L, "spring-boot");
-        repoRepository.saveAll(List.of(gitRepository));
+        List<GitRepository> repositories = new ArrayList<>();
+        repositories.add(new GitRepository(1L, "spring-boot"));
+        repositories.add(new GitRepository(2L, "Python"));
+        repoRepository.saveAll(repositories);
     }
 
-    public void addCommits(){
-        String jsonstring = getJSONString("src/main/resources/raw_data/commits.json");
+    public void addCommits(int repoID){
+        String jsonstring = getJSONString("src/main/resources/raw_data/commits" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Commit> commits = new ArrayList<>();
@@ -96,13 +101,13 @@ public class DataService {
             Date date = string2Date(datestr);
             committer = jsonObject.getString("committer");
             Long committer_id =  JSONObject.parseObject(committer).getLong("id");
-            commits.add(new Commit(1L, committer_id, date));
+            commits.add(new Commit((long) repoID, committer_id, date));
         });
         commitRepository.saveAll(commits);
     }
 
-    public void addDevelopers(){
-        String jsonstring = getJSONString("src/main/resources/raw_data/developers.json");
+    public void addDevelopers(int repoID){
+        String jsonstring = getJSONString("src/main/resources/raw_data/developers" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Developer> developers = new ArrayList<>();
@@ -111,14 +116,14 @@ public class DataService {
             Long id = jsonObject.getLong("id");
             String name =  jsonObject.getString("login");
             if(null != id && null != name) {
-                developers.add(new Developer(id, 1L, name));
+                developers.add(new Developer(id, (long) repoID, name));
             }
         });
         developerRepository.saveAll(developers);
     }
 
-    public void addReleases(){
-        String jsonstring = getJSONString("src/main/resources/raw_data/releases.json");
+    public void addReleases(int repoID){
+        String jsonstring = getJSONString("src/main/resources/raw_data/releases" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Release> releases = new ArrayList<>();
@@ -126,7 +131,7 @@ public class DataService {
             JSONObject jsonObject = JSONObject.parseObject(e.toString());
             JSONObject author = JSONObject.parseObject(jsonObject.getString("author"));
             Long id = jsonObject.getLong("id");
-            Long repo_id = 1L;
+            Long repo_id = (long) repoID;
             Long author_id = author.getLong("id");
             String name = jsonObject.getString("name");
             Date create_date = string2Date(jsonObject.getString("created_at"));
@@ -136,15 +141,15 @@ public class DataService {
         releaseRepository.saveAll(releases);
     }
 
-    public void addIssues(){
-        String jsonstring = getJSONString("src/main/resources/raw_data/all_issues.json");
+    public void addIssues(int repoID){
+        String jsonstring = getJSONString("src/main/resources/raw_data/issues" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Issue> issues = new ArrayList<>();
         jsonArray.forEach(e -> {
             JSONObject jsonObject = JSONObject.parseObject(e.toString());
             Long id = jsonObject.getLong("id");
-            Long repo_id = 1L;
+            Long repo_id = (long) repoID;
             String title = jsonObject.getString("title");
             String state = jsonObject.getString("state");
             Date create_date = string2Date(jsonObject.getString("created_at"));
