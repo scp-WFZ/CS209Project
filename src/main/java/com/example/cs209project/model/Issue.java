@@ -1,7 +1,8 @@
 package com.example.cs209project.model;
 
-import javax.persistence.*;
 import java.util.Date;
+import javax.persistence.*;
+
 
 @Entity
 @Table

@@ -4,9 +4,6 @@ import com.alibaba.fastjson.*;
 import com.example.cs209project.model.*;
 import com.example.cs209project.repository.*;
 import com.sun.istack.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,6 +12,8 @@ import java.sql.Statement;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class DataService {
@@ -24,11 +23,10 @@ public class DataService {
     private final ReleaseRepository releaseRepository;
     private final IssueRepository issueRepository;
 
-    private final Map<String, Integer> Developermap = new HashMap<>();
-
     @Autowired
-    public DataService(RepoRepository repoRepository, DeveloperRepository developerRepository, CommitRepository commitRepository,
-                       ReleaseRepository releaseRepository, IssueRepository issueRepository) {
+    public DataService(RepoRepository repoRepository, DeveloperRepository developerRepository,
+                       CommitRepository commitRepository, ReleaseRepository releaseRepository,
+                       IssueRepository issueRepository) {
         this.repoRepository = repoRepository;
         this.developerRepository = developerRepository;
         this.commitRepository = commitRepository;
@@ -36,9 +34,9 @@ public class DataService {
         this.issueRepository = issueRepository;
     }
 
-    public void addEntries(){
+    public void addEntries() {
         addRepositories();
-        for (int i = 1; i <= 2; i++){
+        for (int i = 1; i <= 2; i++) {
             addCommits(i);
             addDevelopers(i);
             addReleases(i);
@@ -54,23 +52,23 @@ public class DataService {
             FileInputStream fileInputStream = new FileInputStream(filePath);
             InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, "UTF-8");
             BufferedReader reader = new BufferedReader(inputStreamReader);
-            String line = null;
-            while ((line = reader.readLine()) != null){
+            String line;
+            while ((line = reader.readLine()) != null) {
                 stringBuilder.append(line);
             }
             jsonstring = stringBuilder.toString();
             reader.close();
-        }catch (IOException e){
+        }catch (IOException e) {
             e.printStackTrace();
         }
         return jsonstring;
     }
 
-    public Date string2Date(String datestr){
-        if(null == datestr) {
+    public Date string2Date(String datestr) {
+        if (null == datestr) {
             return null;
         }
-        datestr = datestr.replaceAll("Z","").replaceAll("T"," ");
+        datestr = datestr.replaceAll("Z", "").replaceAll("T", " ");
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         Date date;
         try {
@@ -81,14 +79,14 @@ public class DataService {
         return date;
     }
 
-    public void addRepositories(){
+    public void addRepositories() {
         List<GitRepository> repositories = new ArrayList<>();
         repositories.add(new GitRepository(1L, "spring-boot"));
         repositories.add(new GitRepository(2L, "Java"));
         repoRepository.saveAll(repositories);
     }
 
-    public void addCommits(int repoID){
+    public void addCommits(int repoID) {
         String jsonstring = getJSONString("src/main/resources/raw_data/commits" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
@@ -100,7 +98,7 @@ public class DataService {
             String datestr = JSONObject.parseObject(committer).getString("date");
             Date date = string2Date(datestr);
             committer = jsonObject.getString("committer");
-            if(committer!=null){
+            if (committer != null) {
                 Long committer_id =  JSONObject.parseObject(committer).getLong("id");
                 commits.add(new Commit((long) repoID, committer_id, date));
             }
@@ -108,25 +106,25 @@ public class DataService {
         commitRepository.saveAll(commits);
     }
 
-    public void addDevelopers(int repoID){
-        String jsonstring = getJSONString("src/main/resources/raw_data/developers" + repoID + ".json");
-
+    public void addDevelopers(int repoID) {
+        String jsonstring =
+                getJSONString("src/main/resources/raw_data/developers" + repoID + ".json");
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Developer> developers = new ArrayList<>();
         jsonArray.forEach(e -> {
             JSONObject jsonObject = JSONObject.parseObject(e.toString());
             Long id = jsonObject.getLong("id");
             String name =  jsonObject.getString("login");
-            if(null != id && null != name) {
+            if (null != id && null != name) {
                 developers.add(new Developer(id, (long) repoID, name));
             }
         });
         developerRepository.saveAll(developers);
     }
 
-    public void addReleases(int repoID){
-        String jsonstring = getJSONString("src/main/resources/raw_data/releases" + repoID + ".json");
-
+    public void addReleases(int repoID) {
+        String jsonstring
+                = getJSONString("src/main/resources/raw_data/releases" + repoID + ".json");
         JSONArray jsonArray = JSON.parseArray(jsonstring);
         List<Release> releases = new ArrayList<>();
         jsonArray.forEach(e -> {
@@ -143,7 +141,7 @@ public class DataService {
         releaseRepository.saveAll(releases);
     }
 
-    public void addIssues(int repoID){
+    public void addIssues(int repoID) {
         String jsonstring = getJSONString("src/main/resources/raw_data/issues" + repoID + ".json");
 
         JSONArray jsonArray = JSON.parseArray(jsonstring);
@@ -161,28 +159,29 @@ public class DataService {
         issueRepository.saveAll(issues);
     }
 
-    public static Map<String, Object> analyseIssues(@NotNull String repos_name){
+    public static Map<String, Object> analyseIssues(@NotNull String repos_name) {
         Map<String, Object> msi = new HashMap<>();
-        String query = String.format("select i.state,count(i.state) " +
-                "from issue i left join git_repository gri on gri.id = i.repo_id" +
-                " where gri.name = '%s'" +
-                " group by i.state;",repos_name);
-        try{
+        String query = String.format("select i.state,count(i.state) "
+                + "from issue i left join git_repository gri on gri.id = i.repo_id"
+                + " where gri.name = '%s'"
+                + " group by i.state;", repos_name);
+        try {
             Connection conn;
             Statement stmt;
             conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
-                    "postgres","qscfthm123");
+                    "postgres", "qscfthm123");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             while(rs.next()){
-                msi.put(rs.getString(1),rs.getInt(2));
+                msi.put(rs.getString(1), rs.getInt(2));
             }
             rs = stmt.executeQuery(String.format("""
                     select avg(date_part('day',cast(i.close_date as TIMESTAMP)
                     - cast(i.open_date as TIMESTAMP)))
-                    from issue i left join git_repository gri on gri.id = i.repo_id where state = 'closed' and gri.name = '%s';""",repos_name));
+                    from issue i left join git_repository gri on gri.id = i.repo_id where state = 'closed' and gri.name = '%s';""",
+                    repos_name));
             rs.next();
-            msi.put("avg_closed_time",rs.getDouble(1));
+            msi.put("avg_closed_time", rs.getDouble(1));
             stmt.close();
             conn.close();
         } catch (Exception e) {
@@ -191,27 +190,27 @@ public class DataService {
         return msi;
     }
 
-    public static Map<String, Object> analyseRelease(@NotNull String repos_name){
+    public static Map<String, Object> analyseRelease(@NotNull String repos_name) {
         Map<String, Object> msi = new HashMap<>();
         String query = String.format("""
                 select del.name, r.name
                 from developer del join release r on del.id = r.author_id
                 left join git_repository gr on del.repo_id = gr.id
-                where gr.name = '%s'""",repos_name);
-        try{
+                where gr.name = '%s'""", repos_name);
+        try {
             Connection conn;
             Statement stmt;
             conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
-                    "postgres","qscfthm123");
+                    "postgres", "qscfthm123");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
-            while(rs.next()){
-                msi.put(rs.getString(2),rs.getString(1));
+            while (rs.next()) {
+                msi.put(rs.getString(2), rs.getString(1));
             }
             rs = stmt.executeQuery(String.format("""
                 select count(rel.id)
                 from release rel left join git_repository gr on rel.repo_id = gr.id
-                where gr.name = '%s'""",repos_name));
+                where gr.name = '%s'""", repos_name));
             rs.next();
             msi.put("All_repo_nums", rs.getInt(1));
             stmt.close();
@@ -222,27 +221,27 @@ public class DataService {
         return msi;
     }
 
-    public static Map<String, Object> analyseCommit(@NotNull String repos_name){
+    public static Map<String, Object> analyseCommit(@NotNull String repos_name) {
         Map<String, Object> msi = new HashMap<>();
         String query = String.format("""
                 select del.name, c.id
                 from developer del join commit c on del.id = c.committer_id
                 left join git_repository gr on del.repo_id = gr.id
-                where gr.name = '%s'""",repos_name);
-        try{
+                where gr.name = '%s'""", repos_name);
+        try {
             Connection conn;
             Statement stmt;
             conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
-                    "postgres","qscfthm123");
+                    "postgres", "qscfthm123");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
-            while(rs.next()){
-                msi.put(rs.getString(2),rs.getString(1));
+            while (rs.next()) {
+                msi.put(rs.getString(2), rs.getString(1));
             }
             rs = stmt.executeQuery(String.format("""
                     select count(c.id)
                     from commit c left join git_repository gr on c.repo_id = gr.id
-                    where gr.name = '%s'""",repos_name));
+                    where gr.name = '%s'""", repos_name));
             rs.next();
             msi.put("All_commit_nums", rs.getInt(1));
             stmt.close();
@@ -253,7 +252,7 @@ public class DataService {
         return msi;
     }
 
-    public static Map<String, Object> analyseDeveloper(@NotNull String repos_name){
+    public static Map<String, Object> analyseDeveloper(@NotNull String repos_name) {
         Map<String, Object> msi = new HashMap<>();
         String query = String.format("""
                 select d.id, d.name, count(*)
@@ -262,15 +261,15 @@ public class DataService {
                 left join git_repository gr on d.repo_id = gr.id
                 where gr.name = '%s'
                 group by d.id""", repos_name);
-        try{
+        try {
             Connection conn;
             Statement stmt;
             conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/cs209",
-                    "postgres","qscfthm123");
+                    "postgres", "qscfthm123");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             while(rs.next()){
-                msi.put(rs.getString(2),rs.getInt(3));
+                msi.put(rs.getString(2), rs.getInt(3));
             }
             stmt.close();
             conn.close();
