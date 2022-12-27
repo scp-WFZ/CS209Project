@@ -1,9 +1,6 @@
 package com.example.cs209project.controller;
 
-import com.example.cs209project.model.Commit;
-import com.example.cs209project.model.Developer;
-import com.example.cs209project.model.GitRepository;
-import com.example.cs209project.model.Release;
+import com.example.cs209project.model.*;
 import com.example.cs209project.repository.*;
 import com.example.cs209project.service.DataService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +26,13 @@ public class RepoController {
     private ReleaseRepository releaseRepository;
     @Autowired
     private DeveloperRepository developerRepository;
+    @Autowired
+    private IssueRepository issueRepository;
 
-    @GetMapping("/allRepos")
+
+    @GetMapping("/allGitRepos")
     @CrossOrigin
-    public List<GitRepository> getAllRepos(){
+    public List<GitRepository> getAllGitRepos(){
         return repoRepository.findAll();
     }
 
@@ -42,6 +42,12 @@ public class RepoController {
             @RequestParam(value="name", required = false)@Nullable String name){
         return repoRepository.getGithubReposInfos(
                 name!=null?name:"");
+    }
+
+    @GetMapping("/allIssueRepos")
+    @CrossOrigin
+    public List<Issue> getAllIssueRepos(){
+        return issueRepository.findAll();
     }
 
     @GetMapping("/IssueRepo")
@@ -56,6 +62,12 @@ public class RepoController {
             msi.put("closed",0);
         }
         return msi;
+    }
+
+    @GetMapping("/allCommitRepo")
+    @CrossOrigin
+    public List<Commit> getAllCommitRepos(){
+        return commitRepository.findAll();
     }
 
     @GetMapping("/CommitRepo")
@@ -84,6 +96,12 @@ public class RepoController {
         return out;
     }
 
+    @GetMapping("/allReleaseRepo")
+    @CrossOrigin
+    public List<Release> getAllReleaseRepos(){
+        return releaseRepository.findAll();
+    }
+
     @GetMapping("/ReleaseRepo")
     @CrossOrigin
     public Map<String, List<Object>> getReleaseReposiroty(
@@ -108,6 +126,12 @@ public class RepoController {
         out.put("All_repo_nums", new LinkedList<>());
         out.get("All_repo_nums").add(0, msi.get("All_repo_nums"));
         return out;
+    }
+
+    @GetMapping("/allDeveloperRepo")
+    @CrossOrigin
+    public List<Developer> getAllDeveloperRepos(){
+        return developerRepository.findAll();
     }
 
     @GetMapping("/DeveloperRepo")
