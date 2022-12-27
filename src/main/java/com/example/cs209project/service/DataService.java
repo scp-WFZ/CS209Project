@@ -84,7 +84,7 @@ public class DataService {
     public void addRepositories(){
         List<GitRepository> repositories = new ArrayList<>();
         repositories.add(new GitRepository(1L, "spring-boot"));
-        repositories.add(new GitRepository(2L, "Python"));
+        repositories.add(new GitRepository(2L, "Java"));
         repoRepository.saveAll(repositories);
     }
 
