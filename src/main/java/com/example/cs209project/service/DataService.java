@@ -100,8 +100,10 @@ public class DataService {
             String datestr = JSONObject.parseObject(committer).getString("date");
             Date date = string2Date(datestr);
             committer = jsonObject.getString("committer");
-            Long committer_id =  JSONObject.parseObject(committer).getLong("id");
-            commits.add(new Commit((long) repoID, committer_id, date));
+            if(committer!=null){
+                Long committer_id =  JSONObject.parseObject(committer).getLong("id");
+                commits.add(new Commit((long) repoID, committer_id, date));
+            }
         });
         commitRepository.saveAll(commits);
     }
