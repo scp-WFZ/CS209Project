@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CS209A Project</title>
+    <script src="http://localhost:8080/download/js/echarts.js"></script>
+    <script src="http://localhost:8080/download/js/jquery.js"></script>
+    <style>
+        html {
+            background:    url("http://localhost:8080/download/img/bkg.png");
+            width:              100%;
+            height:             100%;
+            overflow-y:         auto;
+        }
+        body {
+            width:              100%;
+            height:             100%;
+            margin:             0;
+            position:           relative;
+        }
+        #title_bar {
+            display:            block;
+            width:              inherit;
+            height:             5vw;
+            color:              #e7e7eb;
+            background-color:  #8A8888F4;
+        }
+        #menu_button {
+            display:            inline-block;
+            width:              5vw;
+            height:             5vw;
+            float:              left;
+            color:              inherit;
+            background-color:   inherit;
+            border:             none;
+            cursor:             pointer;
+            font-size:          2vw;
+        }
+        #title_name {
+            display:            inline-block;
+            height:             inherit;
+            float:              left;
+            color:              inherit;
+            font-size:          2vw;
+            line-height:        5vw;
+        }
+        #search_button {
+            display:            inline-block;
+            width:              5vw;
+            height:             5vw;
+            float:              right;
+            color:              inherit;
+            background-color:   inherit;
+            border:             none;
+            cursor:             pointer;
+            font-size:          2vw;
+        }
+
+        #side_bar {
+            display:            inline-block;
+            box-shadow:         0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12);
+            height:             100%;
+            transition:         1s;
+            float:              left;
+            overflow:           hidden;
+        }
+        .side_tag {
+            display:            block;
+            width:              100%;
+            height:             3vw;
+            border:             none;
+            font-size:          1.5vw;
+            text-align:         left;
+            padding-left:       1.5vw;
+        }
+
+        #search_container {
+            display:            block;
+            box-shadow:         0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12);
+            height:             40%;
+            background-color:   #ffffff;
+            transition:         1s;
+            float:              right;
+            overflow:           hidden;
+            position:           absolute;
+            right: 0;
+        }
+
+        #data_container {
+            display:            inline-block;
+            height:             80%;
+            float:              left;
+            transition:         1s;
+            overflow:           hidden;
+        }
+
+    </style>
+</head>
+
+<body>
+<span id="title_bar">
+    <button id="menu_button"
+            onmousemove="this.style.backgroundColor='#c7c6c6';this.style.color='#000000'"
+            onmouseleave="this.style.backgroundColor='#8A8888F4';this.style.color='#ffffff'"
+            onclick="openMenu()"
+    >&#9776;
+    </button>
+
+    <span id="title_name"></span>
+
+    <button id="search_button"
+            onmousemove="this.style.backgroundColor='#c7c6c6';this.style.color='#000000'"
+            onmouseleave="this.style.backgroundColor='#8A8888F4';this.style.color='#ffffff'"
+            onclick="openSearch()"
+    >🔍
+    </button>
+</span>
+
+<div id="side_bar" style="width: 0">
+    <button class="side_tag" onclick="developer()">Developer</button>
+    <button class="side_tag" onclick="issue()">Issue</button>
+    <button class="side_tag" onclick="release()">Release</button>
+    <button class="side_tag" onclick="commits()">Commits</button>
+</div>
+
+<div id="data_container" style="width: 100%"></div>
+
+<div id="search_container" style="width: 0">
+
+</div>
+
+<script>
+    const host = "http://localhost:8080";
+    let myChart = echarts.init(document.getElementById('data_container'));
+
+    function openMenu() {
+        if (document.getElementById('side_bar').style.width !== "10%") {
+            document.getElementById('data_container').style.width = "90%";
+            document.getElementById('side_bar').style.width = "10%";
+        }
+        else {
+            document.getElementById('data_container').style.width = "100%";
+            document.getElementById('side_bar').style.width = "0";
+        }
+    }
+
+    function openSearch() {
+        if (document.getElementById('search_container').style.width !== "20vw") {
+            document.getElementById('search_container').style.width = "20vw";
+        }
+        else {
+            document.getElementById('search_container').style.width = "0";
+        }
+    }
+
+    function createSearchOption(typeName, defaultValue, id) {
+        let b = document.createElement("label");
+        b.innerText = typeName + ": ";
+        b.style.fontSize = "1vw"
+
+        let s = document.createElement("input");
+        s.style.height = "1vw";
+        s.style.fontSize = "0.75vw"
+        s.type = "search";
+        s.id = id;
+        s.placeholder = defaultValue;
+
+        let l = document.createElement("label");
+        l.style.display = "block";
+        l.style.margin = "0.25vw"
+        l.style.whiteSpace = "nowrap";
+        l.appendChild(b);
+        l.appendChild(s);
+
+        document.getElementById('search_container').appendChild(l);
+
+        return l;
+    }
+
+    function developer() {
+        openMenu();
+        if(document.getElementById('condition') !== null) {
+            document.getElementById('condition').remove();
+        }
+
+        document.getElementById('title_name').innerText = "Developer";
+        let d = document.createElement('div');
+        d.appendChild(createSearchOption('RepoName', 'spring-boot', 'RepoName'));
+        d.id = 'condition';
+
+        let b = document.createElement("button");
+        b.style.border = "none";
+        b.style.width = "6vw";
+        b.style.height = "2vw";
+        b.style.fontSize = "1.5vw";
+        b.innerText = "Submit";
+        b.style.display = "block";
+        b.style.margin = "0.5vw";
+        b.onclick = function () {
+            submitDeveloper()};
+
+        d.appendChild(b);
+        document.getElementById('search_container').appendChild(d);
+    }
+
+    function submitDeveloper() {
+        openSearch();
+        myChart.dispose();
+
+        let dataList = {};
+        let request = host + "/DeveloperRepo?";
+
+        if (document.getElementById('RepoName').value !== "") {
+            request = request + "&repos_name=" + document.getElementById('RepoName').value;
+        }
+        $.ajax({
+            type:"get",
+            async:false,
+            url: request,
+            dataType:"json",
+            success:function(data) {
+                dataList = data.info;
+            },
+            error: function(XMLHttpRequest, textStatus) {
+                alert(XMLHttpRequest.status);
+            }
+        });
+
+        const commit_times = []
+        const name_list = []
+        for (let i = 0; i < dataList.length; i++) {
+            name_list.push(dataList[i++]);
+            commit_times.push(dataList[i]);
+        }
+
+        myChart = echarts.init(document.getElementById('data_container'));
+        const option = {
+            display: "inline-block",
+            float: "left",
+            position: "relative",
+            height: "80%",
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {},
+            toolbox: {
+                show: true,
+                feature: {
+                    mark: { show: true },
+                    dataView: { show: true, readOnly: false },
+                    magicType: { show: true, type: ['line', 'bar'] },
+                    restore: { show: true },
+                    saveAsImage: { show: true },
+                },
+            },
+            calculable: true,
+            xAxis: {
+                data: name_list
+            },
+            yAxis: {},
+            series: [
+                {
+                    name: 'Commit',
+                    type: 'bar',
+                    data: commit_times
+                },
+            ]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener("resize", function() {
+            myChart.resize();
+        });
+    }
+
+    function issue() {
+        openMenu();
+        if(document.getElementById('condition') !== null) {
+            document.getElementById('condition').remove();
+        }
+
+        document.getElementById('title_name').innerText = "Issue";
+        let d = document.createElement('div');
+        d.appendChild(createSearchOption('RepoName','spring-boot','RepoName'));
+        d.id = 'condition';
+
+        let b = document.createElement("button");
+        b.style.border = "none";
+        b.style.width = "6vw";
+        b.style.height = "2vw";
+        b.style.fontSize = "1.5vw";
+        b.innerText = "Submit";
+        b.style.display = "block";
+        b.style.margin = "0.5vw";
+        b.onclick = function () {submitIssue()};
+
+        d.appendChild(b);
+        document.getElementById('search_container').appendChild(d);
+    }
+
+    function submitIssue() {
+        openSearch();
+        myChart.dispose();
+
+        let dataList = {};
+        let request = host + "/IssueRepo?";
+        if (document.getElementById('RepoName').value !== "") {
+            request = request + "&repos_name=" + document.getElementById('RepoName').value;
+        }
+
+        $.ajax({
+            type:"get",
+            async:false,
+            url: request,
+            dataType:"json",
+            success:function(data) {
+                dataList = data;
+            },
+            error: function(XMLHttpRequest, textStatus) {
+                alert(XMLHttpRequest.status);
+            }
+        });
+
+        myChart = echarts.init(document.getElementById('data_container'));
+
+        const option = {
+            display: "inline-block",
+            float: "left",
+            position: "relative",
+            height: "80%",
+            title: {
+                text: 'Average Closed Time: ' + dataList.avg_closed_time + ' days',
+                left: 'center',
+                marginHeight: '10%'
+            },
+            tooltip: {
+                trigger: 'item'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 'left'
+            },
+            series: [
+                {
+                    name: 'Label state',
+                    type: 'pie',
+                    radius: '50%',
+                    data: [
+                        { value: dataList.open, name: 'open issues' },
+                        { value: dataList.closed, name: 'closed issues' },
+                    ],
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                },
+            ]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener("resize", function() {
+            myChart.resize();
+        });
+    }
+
+    function commits() {
+        openMenu();
+        if(document.getElementById('condition') !== null) {
+            document.getElementById('condition').remove();
+        }
+
+        document.getElementById('title_name').innerText = "Commit";
+        let d = document.createElement('div');
+        d.appendChild(createSearchOption('RepoName','spring-boot','RepoName'));
+        d.appendChild(createSearchOption('committer_id','1','committer_id'));
+        d.appendChild(createSearchOption('since','2022-01-20','since'));
+        d.appendChild(createSearchOption('end','2022-01-20','end'));
+        d.appendChild(createSearchOption('limit','20','limit'));
+        d.id = 'condition';
+
+        let b = document.createElement("button");
+        b.style.border = "none";
+        b.style.width = "6vw";
+        b.style.height = "2vw";
+        b.style.fontSize = "1.5vw";
+        b.innerText = "Submit";
+        b.style.display = "block";
+        b.style.margin = "0.5vw";
+        b.onclick = function () {submitCommits()};
+
+        d.appendChild(b);
+        document.getElementById('search_container').appendChild(d);
+    }
+
+    function submitCommits() {
+        openSearch();
+        myChart.dispose();
+
+        let dataList = {};
+        let request = host + "/CommitRepo?";
+        if (document.getElementById('RepoName').value !== "") {
+            request = request + "&repos_name=" + document.getElementById('RepoName').value;
+        }
+        if (document.getElementById('committer_id').value !== "") {
+            request = request + "&committer_id=" + document.getElementById('committer_id').value;
+        }
+        if (document.getElementById('since').value !== "") {
+            request = request + "&since=" + document.getElementById('since').value;
+        }
+        if (document.getElementById('end').value !== "") {
+            request = request + "&end=" + document.getElementById('end').value;
+        }
+        if (document.getElementById('limit').value !== "") {
+            request = request + "&limit=" + document.getElementById('limit').value;
+        }
+
+        $.ajax({
+            type:"get",
+            async:false,
+            url: request,
+            dataType:"json",
+            success:function(data) {
+                dataList = data;
+            },
+            error: function(XMLHttpRequest, textStatus) {
+                alert(XMLHttpRequest.status);
+            }
+        });
+
+        const data_get = []
+        let data_info = dataList.info
+        for (let i = 0; i < data_info.length; i++) {
+            data_get.push([data_info[i++], data_info[i]]);
+        }
+
+        const data_in = data_get.map(function (item) {
+            const date = new Date(item[0]);
+            const day_time = date.getDate()
+            const month_time = date.getMonth() + 1
+            const h = date.getHours();
+            const m = date.getMinutes();
+            let time = ''
+            if(h <= 11){
+                time = 'morning'
+            } else if(h > 11 && h <= 14){
+                time = 'noon'
+            } else if(h >14 && h <= 17){
+                time = 'afternoon'
+            } else if(h > 17){
+                time = 'night'
+            }
+            const week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            const day = date.getDay();
+            return [item[0], h * 60 + m, item[1], time, week[day], month_time, day_time];
+        });
+
+        myChart = echarts.init(document.getElementById('data_container'));
+
+        const fillStr = (val) => (`${val}`.length < 2 ? `0${val}` : val);
+
+        const hours = new Array(24 * 60 + 1)
+            .fill(0)
+            .map(
+                (_, index) =>
+                    `${fillStr(parseInt(index / 60))}:${fillStr(parseInt(index % 60))}`
+            );
+
+        const option = {
+            display: "inline-block",
+            float: "left",
+            position: "relative",
+            height: "80%",
+            weight: "80%",
+            title: {
+                text: 'All commit nums: ' + dataList.All_commit_nums[0],
+                left: 'center',
+                marginHeight: '10%'
+            },
+            tooltip: {
+                position: 'top',
+                formatter: function (params) {
+                    return params.value[2] + ' Commit in ' + params.value[4] + "," + params.value[3] + " " + params.value[5]
+                    + "-" + params.value[6] + " " + parseInt(params.value[1] / 60) + ':' + params.value[1] % 60;
+                }
+            },
+            legend: {
+            },
+            grid: {
+                left: 200,
+                bottom: 20,
+                right: 200,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'time',
+                axisLabel: {
+                    formatter: '{yyyy}-{MM}-{dd}'
+                },
+                scale:true,
+                name:'日期',
+                color:'red'
+
+            },
+            yAxis: {
+                data: hours,
+                axisLabel: {
+                    showMaxLabel: true,
+                    interval: 359
+                },
+                scale:true,
+                name:'时间'
+
+            },
+            series: [{
+                data: data_in,
+                type: 'scatter',
+                symbolSize: 40
+            }]
+        };
+
+        myChart.setOption(option);
+        window.addEventListener("resize", function() {
+            myChart.resize();
+        });
+    }
+
+    function release() {
+        openMenu();
+        if(document.getElementById('condition') !== null) {
+            document.getElementById('condition').remove();
+        }
+
+        document.getElementById('title_name').innerText = "Release";
+        let d = document.createElement('div');
+        d.appendChild(createSearchOption('RepoName','spring-boot','RepoName'));
+        d.appendChild(createSearchOption('author_id','1','author_id'));
+        d.appendChild(createSearchOption('name','v3.0.0-RC1','name'));
+        d.appendChild(createSearchOption('since','2022-01-20','since'));
+        d.appendChild(createSearchOption('limit','20','limit'));
+        d.id = 'condition';
+
+        let b = document.createElement("button");
+        b.style.border = "none";
+        b.style.width = "6vw";
+        b.style.height = "2vw";
+        b.style.fontSize = "1.5vw";
+        b.innerText = "Submit";
+        b.style.display = "block";
+        b.style.margin = "0.5vw";
+        b.onclick = function () {submitRelease()};
+
+        d.appendChild(b);
+        document.getElementById('search_container').appendChild(d);
+    }
+
+    function submitRelease() {
+        openSearch();
+        myChart.dispose();
+
+        let dataList = {};
+        let request = host + "/ReleaseRepo?";
+        if (document.getElementById('RepoName').value !== "") {
+            request = request + "&repos_name=" + document.getElementById('RepoName').value;
+        }
+        if (document.getElementById('author_id').value !== "") {
+            request = request + "&author_id=" + document.getElementById('author_id').value;
+        }
+        if (document.getElementById('name').value !== "") {
+            request = request + "&name=" + document.getElementById('name').value;
+        }
+        if (document.getElementById('since').value !== "") {
+            request = request + "&since=" + document.getElementById('since').value;
+        }
+        if (document.getElementById('limit').value !== "") {
+            request = request + "&limit=" + document.getElementById('limit').value;
+        }
+
+        $.ajax({
+            type:"get",
+            async:false,
+            url: request,
+            dataType:"json",
+            success:function(data) {
+                dataList = data;
+            },
+            error: function(XMLHttpRequest, textStatus) {
+                alert(XMLHttpRequest.status);
+            }
+        });
+
+        const data_get = []
+        let data_info = dataList.info
+        for (let i = 0; i < data_info.length; i++) {
+            data_get.push([data_info[i++], data_info[i]]);
+        }
+
+        const data_in = data_get.map(function (item) {
+            const date = new Date(item[0]);
+            const day_time = date.getDate()
+            const month_time = date.getMonth() + 1
+            const h = date.getHours();
+            const m = date.getMinutes();
+            let time = ''
+            if(h <= 11){
+                time = 'morning'
+            } else if(h > 11 && h <= 14){
+                time = 'noon'
+            } else if(h >14 && h <= 17){
+                time = 'afternoon'
+            } else if(h > 17){
+                time = 'night'
+            }
+            const week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            const day = date.getDay();
+            return [item[0], h * 60 + m, item[1], time, week[day], month_time, day_time];
+        });
+
+        myChart = echarts.init(document.getElementById('data_container'));
+
+        const fillStr = (val) => (`${val}`.length < 2 ? `0${val}` : val);
+
+        const hours = new Array(24 * 60 + 1)
+            .fill(0)
+            .map(
+                (_, index) =>
+                    `${fillStr(parseInt(index / 60))}:${fillStr(parseInt(index % 60))}`
+            );
+
+        const option = {
+            display: "inline-block",
+            float: "left",
+            position: "relative",
+            height: "80%",
+            weight: "80%",
+            title: {
+                text: 'All commit nums: ' + dataList.All_repo_nums[0],
+                left: 'center',
+                marginHeight: '10%'
+            },
+            tooltip: {
+                position: 'top',
+                formatter: function (params) {
+                    return params.value[2] + ' Commit in ' + params.value[4] + "," + params.value[3] + " " + params.value[5]
+                        + "-" + params.value[6] + " " + parseInt(params.value[1] / 60) + ':' + params.value[1] % 60;
+                }
+            },
+            legend: {
+            },
+            grid: {
+                left: 200,
+                bottom: 20,
+                right: 200,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'time',
+                axisLabel: {
+                    formatter: '{yyyy}-{MM}-{dd}'
+                },
+                scale:true,
+                name:'日期',
+                color:'red'
+
+            },
+            yAxis: {
+                data: hours,
+                axisLabel: {
+                    showMaxLabel: true,
+                    interval: 359
+                },
+                scale:true,
+                name:'时间'
+
+            },
+            series: [{
+                data: data_in,
+                type: 'scatter',
+                symbolSize: 40
+            }]
+        };
+
+        myChart.setOption(option);
+        window.addEventListener("resize", function() {
+            myChart.resize();
+        });
+    }
+</script>
+</body>
+</html>
